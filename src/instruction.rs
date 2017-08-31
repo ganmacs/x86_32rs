@@ -2,6 +2,7 @@ use emulator::Emulator;
 use errors::Error;
 use register::*;
 use modrm::Modrm;
+use io;
 
 pub fn jmp_rel32(emu: &mut Emulator) -> Result<(), Error> {
     let _ = emu.read_imm8(); // op
@@ -210,6 +211,25 @@ pub fn opcode_f7(emu: &mut Emulator) -> Result<(), Error> {
         3 => neg(emu, m),
         _ => unimplemented!(),
     }
+}
+
+pub fn in_al_dx(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+
+    let addr = (emu.get_register32(EDX)? & 0xffff) as u16;
+    let value = io::io_in8(addr);
+    emu.set_register8(AL, value);
+    Ok(())
+}
+
+pub fn out_dx_al(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+    let addr = (emu.get_register32(EDX)? & 0xffff) as u16;
+    let value = emu.get_register8(AL);
+
+    io::io_out8(addr, value);
+    emu.set_register8(AL, value);
+    Ok(())
 }
 
 fn neg(emu: &mut Emulator, modrm: Modrm) -> Result<(), Error> {

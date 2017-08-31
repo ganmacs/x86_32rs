@@ -16,6 +16,25 @@ pub const EBP: usize = 5;
 pub const ESI: usize = 6;
 #[allow(dead_code)]
 pub const EDI: usize = 7;
+
+#[allow(dead_code)]
+pub const AL: usize = EAX;
+#[allow(dead_code)]
+pub const CL: usize = ECX;
+#[allow(dead_code)]
+pub const DL: usize = EDX;
+#[allow(dead_code)]
+pub const BL: usize = EBX;
+
+#[allow(dead_code)]
+pub const AH: usize = AL + 4;
+#[allow(dead_code)]
+pub const CH: usize = CL + 4;
+#[allow(dead_code)]
+pub const DH: usize = DL + 4;
+#[allow(dead_code)]
+pub const BH: usize = BL + 4;
+
 const REGISTER_NAMES: [&str; 8] = ["EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI"];
 
 pub struct Register {

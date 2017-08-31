@@ -77,6 +77,8 @@ impl Emulator {
             0xE8 => instruction::call_rel32(self),
             0xE9 => instruction::jmp_rel32(self),
             0xEB => self.jmp_rel8(),
+            0xEC => instruction::in_al_dx(self),
+            0xEE => instruction::out_dx_al(self),
             0xF7 => instruction::opcode_f7(self),
             0xFF => instruction::code_ff(self),
             _ => Err(Error::UnknownOpcode(op as usize)),
@@ -200,6 +202,24 @@ impl Emulator {
         let v = self.get_memory32(addr as usize);
         self.set_register(ESP, addr + 4);
         v.unwrap()
+    }
+
+    pub fn set_register8(&mut self, i: usize, v: u8) {
+        if i < 4 {
+            let orig = self.get_register32(i).unwrap() & 0xffffff00;
+            self.register.set(i, orig | (v as u32));
+        } else {
+            let orig = self.get_register32(i - 4).unwrap() & 0xffff00ff;
+            self.register.set(i - 4, orig | (v as u32) << 8);
+        }
+    }
+
+    pub fn get_register8(&mut self, i: usize) -> u8 {
+        if i < 4 {
+            (self.get_register32(i).unwrap() & 0xff) as u8
+        } else {
+            ((self.get_register32(i - 4).unwrap() >> 8) & 0xff) as u8
+        }
     }
 
     pub fn set_register(&mut self, i: usize, v: u32) {
