@@ -22,6 +22,17 @@ pub fn js(emu: &mut Emulator) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn jz(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+
+    let v = emu.read_imm8s()?;
+    if emu.is_set_zf() {
+        emu.eip = emu.eip.wrapping_add(v as u32);
+    }
+
+    Ok(())
+}
+
 pub fn jle(emu: &mut Emulator) -> Result<(), Error> {
     let _ = emu.read_imm8(); // opcode
 
@@ -30,6 +41,18 @@ pub fn jle(emu: &mut Emulator) -> Result<(), Error> {
     if emu.is_set_zf() || (emu.is_set_sf() != emu.is_set_of()) {
         emu.eip = emu.eip.wrapping_add(v as u32);
     }
+    Ok(())
+}
+
+pub fn cmp_al_imm8(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+
+    let al = emu.get_register8(AL);
+    let v = emu.read_imm8()?;
+
+    let ret = al.wrapping_sub(v);
+    emu.update_eflag_sub(al as u32, v as u32, ret as u64);
+
     Ok(())
 }
 
@@ -108,6 +131,18 @@ pub fn mov_rm32_r32(emu: &mut Emulator) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn mov_r8_rm8(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+
+    let v = emu.read_imm8()?;
+    let m = Modrm::new(v, emu);
+
+    let rm = m.get_rm8(emu);
+
+    m.set_r8(emu, rm);
+    Ok(())
+}
+
 pub fn mov_r32_rm32(emu: &mut Emulator) -> Result<(), Error> {
     let _ = emu.read_imm8(); // opcode
 
@@ -130,6 +165,22 @@ pub fn mov_rm32_imm32(emu: &mut Emulator) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn mov_r8_imm8(emu: &mut Emulator) -> Result<(), Error> {
+    let reg = emu.read_imm8()? - 0xB0; // opcode
+    let imm = emu.read_imm8()?;
+
+    emu.set_register8(reg as usize, imm);
+    Ok(())
+}
+
+pub fn mov_r32_imm32(emu: &mut Emulator) -> Result<(), Error> {
+    let reg = emu.read_imm8()? - 0xB8;
+    let value = emu.read_imm32()?;
+
+    emu.set_register32(reg as usize, value);
+    Ok(())
+}
+
 pub fn code_ff(emu: &mut Emulator) -> Result<(), Error> {
     let _ = emu.read_imm8(); // opcode
 
@@ -137,16 +188,23 @@ pub fn code_ff(emu: &mut Emulator) -> Result<(), Error> {
     let m = Modrm::new(v, emu);
 
     match m.reg {
-        0 => inc_r32(emu, m)?,
+        0 => inc_rm32(emu, m)?,
         _ => unimplemented!(),
     }
 
     Ok(())
 }
 
-pub fn inc_r32(emu: &mut Emulator, modrm: Modrm) -> Result<(), Error> {
+pub fn inc_rm32(emu: &mut Emulator, modrm: Modrm) -> Result<(), Error> {
     let rm = modrm.get_rm32(emu);
     modrm.set_rm32(emu, rm.wrapping_add(1));
+    Ok(())
+}
+
+pub fn inc_r32(emu: &mut Emulator) -> Result<(), Error> {
+    let reg = emu.read_imm8()? - 0x40;
+    let v = emu.get_register32(reg as usize)?;
+    emu.set_register32(reg as usize, v + 1);
     Ok(())
 }
 
@@ -160,7 +218,7 @@ pub fn push_r32(emu: &mut Emulator) -> Result<(), Error> {
 pub fn pop_r32(emu: &mut Emulator) -> Result<(), Error> {
     let reg = emu.read_imm8()? - 0x58;
     let v = emu.pop32();
-    emu.set_register(reg as usize, v);
+    emu.set_register32(reg as usize, v);
     Ok(())
 }
 
@@ -187,10 +245,10 @@ pub fn leave(emu: &mut Emulator) -> Result<(), Error> {
     let _ = emu.read_imm8(); // opcode
 
     let esp_addr = emu.get_register32(EBP)?;
-    emu.set_register(ESP, esp_addr);
+    emu.set_register32(ESP, esp_addr);
 
     let v = emu.pop32();
-    emu.set_register(EBP, v);
+    emu.set_register32(EBP, v);
 
     Ok(())
 }

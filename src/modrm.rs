@@ -53,10 +53,31 @@ impl Modrm {
         }
     }
 
+    pub fn get_rm8(&self, e: &mut Emulator) -> u8 {
+        if self.mod_b == 3 {
+            // override effective_address
+            e.get_register8(self.rm as usize)
+        } else {
+            let addr = self.effective_address(e);
+            e.get_memory8(addr as usize).unwrap()
+        }
+    }
+
+    pub fn set_rm8(&self, e: &mut Emulator, v: u8) {
+        if self.mod_b == 3 {
+            // override effective_address
+            e.set_register8(self.rm as usize, v);
+        } else {
+            let addr = self.effective_address(e);
+            let v = e.set_memory8(addr as usize, v as u32);
+            v
+        }
+    }
+
     pub fn set_rm32(&self, e: &mut Emulator, v: u32) {
         if self.mod_b == 3 {
             // override effective_address
-            e.set_register(self.rm as usize, v);
+            e.set_register32(self.rm as usize, v);
         } else {
             let addr = self.effective_address(e);
             let v = e.set_memory32(addr as usize, v);
@@ -64,12 +85,20 @@ impl Modrm {
         }
     }
 
+    pub fn get_r8(&self, e: &mut Emulator) -> u8 {
+        e.get_register8(self.reg as usize)
+    }
+
     pub fn get_r32(&self, e: &mut Emulator) -> u32 {
         e.get_register32(self.reg as usize).unwrap()
     }
 
     pub fn set_r32(&self, e: &mut Emulator, v: u32) {
-        e.set_register(self.reg as usize, v)
+        e.set_register32(self.reg as usize, v)
+    }
+
+    pub fn set_r8(&self, e: &mut Emulator, v: u8) {
+        e.set_register8(self.reg as usize, v)
     }
 
     fn effective_address(&self, e: &mut Emulator) -> u32 {
@@ -78,7 +107,7 @@ impl Modrm {
                 match self.reg {
                     4 => unimplemented!(),
                     5 => e.read_imm32().unwrap(),
-                    _ => e.get_register32(self.reg as usize).unwrap(),
+                    _ => e.get_register32(self.rm as usize).unwrap(),
                 }
             }
             1 => {

@@ -47,7 +47,6 @@ impl Emulator {
             println!("EIP = {:02X}, Code = {:02X}", self.eip, code);
 
             self.exec(code)?;
-            // self.dump();
 
             if self.eip == 0x00 {
                 println!("end of program");
@@ -62,15 +61,20 @@ impl Emulator {
         match op {
             0x01 => instruction::add_rm32_r32(self),
             0x3B => instruction::cmp_r32_rm32(self),
+            0x3C => instruction::cmp_al_imm8(self),
+            0x40...0x47 => instruction::inc_r32(self),
             0x50...0x57 => instruction::push_r32(self),
             0x58...0x5E => instruction::pop_r32(self),
             0x6A => instruction::push_i8(self),
+            0x74 => instruction::jz(self),
             0x78 => instruction::js(self),
             0x7E => instruction::jle(self),
             0x83 => instruction::opcode_83(self),
             0x89 => instruction::mov_rm32_r32(self),
+            0x8A => instruction::mov_r8_rm8(self),
             0x8B => instruction::mov_r32_rm32(self),
-            0xB8...0xBF => self.mov_r32_imm32(),
+            0xB0...0xB7 => instruction::mov_r8_imm8(self),
+            0xB8...0xBF => instruction::mov_r32_imm32(self),
             0xC3 => instruction::ret(self),
             0xC7 => instruction::mov_rm32_imm32(self),
             0xC9 => instruction::leave(self),
@@ -83,15 +87,6 @@ impl Emulator {
             0xFF => instruction::code_ff(self),
             _ => Err(Error::UnknownOpcode(op as usize)),
         }
-    }
-
-
-    fn mov_r32_imm32(&mut self) -> Result<(), Error> {
-        let reg: u8 = self.get_code8(0)? - 0xB8;
-        let value: u32 = self.get_code32(1).unwrap();
-        self.register.set(reg as usize, value);
-        self.eip += 5;
-        Ok(())
     }
 
     fn jmp_rel8(&mut self) -> Result<(), Error> {
@@ -121,14 +116,9 @@ impl Emulator {
         // eip+=1
     }
 
-
     pub fn get_sign_code8(&mut self, i: usize) -> Result<i8, Error> {
         self.memory.get_i8(self.eip as usize + i)
         // eip+=1
-    }
-
-    pub fn get_memory32(&mut self, i: usize) -> Result<u32, Error> {
-        self.memory.get_u32(i)
     }
 
     // --------
@@ -193,15 +183,23 @@ impl Emulator {
 
     pub fn push32(&mut self, v: u32) {
         let addr = self.get_register32(ESP).unwrap() - 4; //  (ESP - 4) is a next pointer of stack.
-        self.set_register(ESP, addr);
+        self.set_register32(ESP, addr);
         self.set_memory32(addr as usize, v);
     }
 
     pub fn pop32(&mut self) -> u32 {
         let addr = self.get_register32(ESP).unwrap();
         let v = self.get_memory32(addr as usize);
-        self.set_register(ESP, addr + 4);
+        self.set_register32(ESP, addr + 4);
         v.unwrap()
+    }
+
+    pub fn get_register8(&mut self, i: usize) -> u8 {
+        if i < 4 {
+            (self.get_register32(i).unwrap() & 0xff) as u8
+        } else {
+            ((self.get_register32(i - 4).unwrap() >> 8) & 0xff) as u8
+        }
     }
 
     pub fn set_register8(&mut self, i: usize, v: u8) {
@@ -214,20 +212,24 @@ impl Emulator {
         }
     }
 
-    pub fn get_register8(&mut self, i: usize) -> u8 {
-        if i < 4 {
-            (self.get_register32(i).unwrap() & 0xff) as u8
-        } else {
-            ((self.get_register32(i - 4).unwrap() >> 8) & 0xff) as u8
-        }
+    pub fn get_register32(&mut self, i: usize) -> Result<u32, Error> {
+        Ok(self.register.get(i))
     }
 
-    pub fn set_register(&mut self, i: usize, v: u32) {
+    pub fn set_register32(&mut self, i: usize, v: u32) {
         self.register.set(i, v);
     }
 
-    pub fn get_register32(&mut self, i: usize) -> Result<u32, Error> {
-        Ok(self.register.get(i))
+    pub fn get_memory8(&mut self, i: usize) -> Result<u8, Error> {
+        self.memory.get_u8(i)
+    }
+
+    pub fn set_memory8(&mut self, i: usize, v: u32) {
+        self.memory.set_u8(i, v)
+    }
+
+    pub fn get_memory32(&mut self, i: usize) -> Result<u32, Error> {
+        self.memory.get_u32(i)
     }
 
     pub fn set_memory32(&mut self, i: usize, v: u32) {
