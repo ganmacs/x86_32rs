@@ -44,7 +44,7 @@ impl Emulator {
     pub fn run(&mut self) -> Result<(), Error> {
         loop {
             let code = self.get_code8(0)?;
-            println!("EIP = {:02X}, Code = {:02X}", self.eip, code);
+            // println!("EIP = {:02X}, Code = {:02X}", self.eip, code);
 
             self.exec(code)?;
 
@@ -78,6 +78,7 @@ impl Emulator {
             0xC3 => instruction::ret(self),
             0xC7 => instruction::mov_rm32_imm32(self),
             0xC9 => instruction::leave(self),
+            0xCD => instruction::swi(self),
             0xE8 => instruction::call_rel32(self),
             0xE9 => instruction::jmp_rel32(self),
             0xEB => self.jmp_rel8(),

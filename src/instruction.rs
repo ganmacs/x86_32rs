@@ -2,6 +2,7 @@ use emulator::Emulator;
 use errors::Error;
 use register::*;
 use modrm::Modrm;
+use bios;
 use io;
 
 pub fn jmp_rel32(emu: &mut Emulator) -> Result<(), Error> {
@@ -249,6 +250,18 @@ pub fn leave(emu: &mut Emulator) -> Result<(), Error> {
 
     let v = emu.pop32();
     emu.set_register32(EBP, v);
+
+    Ok(())
+}
+
+pub fn swi(emu: &mut Emulator) -> Result<(), Error> {
+    let _ = emu.read_imm8(); // opcode
+    let index = emu.read_imm8()?;
+
+    match index {
+        0x10 => bios::video(emu),
+        _ => unimplemented!(),
+    }
 
     Ok(())
 }
